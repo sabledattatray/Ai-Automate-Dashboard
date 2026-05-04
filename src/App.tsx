@@ -17,36 +17,44 @@ import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 
 import { AdminPanel } from "./components/AdminPanel";
 
+function ConfigRequired() {
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white p-8">
+      <div className="max-w-md w-full bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl text-center space-y-6">
+        <div className="w-20 h-20 bg-rose-500/20 rounded-full mx-auto flex items-center justify-center">
+          <span className="text-4xl text-rose-500">⚠️</span>
+        </div>
+        <h1 className="text-2xl font-bold text-rose-400">Configuration Required</h1>
+        <p className="text-slate-400 text-sm leading-relaxed">
+          Firebase environment variables are missing. If you've deployed this to Vercel/GitHub, you must configure the following in your project settings:
+        </p>
+        <div className="bg-slate-950 p-4 rounded-lg text-left font-mono text-[10px] text-rose-300/80 overflow-x-auto whitespace-pre">
+          VITE_FIREBASE_API_KEY
+          VITE_FIREBASE_AUTH_DOMAIN
+          VITE_FIREBASE_PROJECT_ID
+          VITE_FIREBASE_STORAGE_BUCKET
+          VITE_FIREBASE_MESSAGING_SENDER_ID
+          VITE_FIREBASE_APP_ID
+        </div>
+        <p className="text-xs text-slate-500 italic">
+          Check .env.example for the full list of required keys.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  if (!auth) {
+    return <ConfigRequired />;
+  }
+
+  return <MainApp />;
+}
+
+function MainApp() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [user, loading, error] = useAuthState(auth as any);
-
-  if (!auth) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white p-8">
-        <div className="max-w-md w-full bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl text-center space-y-6">
-          <div className="w-20 h-20 bg-rose-500/20 rounded-full mx-auto flex items-center justify-center">
-            <span className="text-4xl text-rose-500">⚠️</span>
-          </div>
-          <h1 className="text-2xl font-bold text-rose-400">Configuration Required</h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Firebase environment variables are missing. If you've deployed this to Vercel/GitHub, you must configure the following in your project settings:
-          </p>
-          <div className="bg-slate-950 p-4 rounded-lg text-left font-mono text-[10px] text-rose-300/80 overflow-x-auto whitespace-pre">
-            VITE_FIREBASE_API_KEY
-            VITE_FIREBASE_AUTH_DOMAIN
-            VITE_FIREBASE_PROJECT_ID
-            VITE_FIREBASE_STORAGE_BUCKET
-            VITE_FIREBASE_MESSAGING_SENDER_ID
-            VITE_FIREBASE_APP_ID
-          </div>
-          <p className="text-xs text-slate-500 italic">
-            Check .env.example for the full list of required keys.
-          </p>
-        </div>
-      </div>
-    );
-  }
   const { datasets, setDatasets, addDataset } = useDatasetStore();
   const { tiles, setTiles, currentView, setCurrentView } = useCanvasStore();
   
