@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasAll(['email', 'createdAt'])
+                    && request.resource.data.size() == 2
+                    && request.resource.data.email is string
+                    && request.resource.data.createdAt is number;
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email'])
+                    && request.resource.data.email is string;
+      allow delete: if isOwner(userId);
+
+      match /datasets/{datasetId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+                      && request.resource.data.keys().hasAll(['userId', 'name', 'data', 'columns', 'size', 'lastModified'])
+                      && request.resource.data.userId == userId
+                      && request.resource.data.name is string
+                      && request.resource.data.data is list
+                      && request.resource.data.columns is list
+                      && request.resource.data.size is number
+                      && request.resource.data.lastModified is number;
+        allow update: if isOwner(userId)
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'data', 'columns', 'size', 'lastModified'])
+                      && request.resource.data.userId == resource.data.userId
+                      && request.resource.data.name is string
+                      && request.resource.data.data is list
+                      && request.resource.data.columns is list
+                      && request.resource.data.size is number
+                      && request.resource.data.lastModified is number;
+        allow delete: if isOwner(userId);
+      }
+
+      match /dashboards/{dashboardId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+                      && request.resource.data.keys().hasAll(['userId', 'tiles'])
+                      && request.resource.data.userId == userId
+                      && request.resource.data.tiles is list;
+        allow update: if isOwner(userId)
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tiles', 'updatedAt'])
+                      && request.resource.data.userId == resource.data.userId
+                      && request.resource.data.tiles is list;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

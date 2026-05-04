@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and metadata",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Dataset": {
+      "title": "Dataset",
+      "description": "User uploaded dataset",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "data": { "type": "array" },
+        "columns": { "type": "array" },
+        "size": { "type": "number" },
+        "lastModified": { "type": "number" }
+      },
+      "required": ["userId", "name", "data", "columns"]
+    },
+    "Dashboard": {
+      "title": "Dashboard",
+      "description": "Saved dashboard tiles",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "tiles": { "type": "array" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "tiles"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "users/{userId}/datasets/{datasetId}": {
+      "schema": { "$ref": "#/entities/Dataset" },
+      "description": "Datasets belonging to a user"
+    },
+    "users/{userId}/dashboards/{dashboardId}": {
+      "schema": { "$ref": "#/entities/Dashboard" },
+      "description": "Dashboards belonging to a user"
+    }
+  }
+}
