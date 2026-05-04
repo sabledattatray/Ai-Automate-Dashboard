@@ -315,19 +315,26 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
+    // In production (like Vercel), the static files are served by the host
+    // or we can serve them manually if needed, but Vercel's standard is to use /api for functions
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  // Only listen if not in a serverless environment (like Vercel)
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+  
+  return app;
 }
 
-startServer().catch(err => {
-  console.error("SERVER CRASHED: ", err);
-  process.exit(1);
-});
+// Export a promise that resolves to the app for Vercel
+export default startServer();

@@ -24,6 +24,6 @@ if (!firebaseConfig.apiKey && configFiles.length > 0) {
   firebaseConfig = (configFiles[0] as any).default;
 }
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
+export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null;
+export const auth = app ? getAuth(app) : null;
