@@ -181,7 +181,7 @@ export function DataPreviewModal() {
               <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
               
               <Popover open={isAddingColumn} onOpenChange={setIsAddingColumn}>
-                <PopoverTrigger render={<Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-medium whitespace-nowrap border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900/50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400" />}>
+                <PopoverTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900/50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 h-8 px-3 gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer">
                     <Variable className="w-3.5 h-3.5" /> Custom Logic
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-4" align="end">
@@ -243,7 +243,7 @@ export function DataPreviewModal() {
                         )}
                         
                         <DropdownMenu>
-                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-6 w-6 opacity-40 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-800 rounded bg-transparent shrink-0" />}>
+                          <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-6 w-6 opacity-40 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-800 rounded bg-transparent shrink-0 cursor-pointer">
                               <Settings2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">

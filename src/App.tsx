@@ -235,7 +235,7 @@ function MainApp() {
                  </div>
                </div>
             </div>
-          ) : currentView === "privacy" ? (
+          ) : (currentView as string) === "privacy" ? (
             <PrivacyPolicy />
           ) : (
             <>

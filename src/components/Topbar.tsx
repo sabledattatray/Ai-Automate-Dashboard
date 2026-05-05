@@ -31,11 +31,9 @@ export function Topbar() {
 
       <div className="flex items-center gap-2">
         <Popover>
-          <PopoverTrigger>
-            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-slate-600 dark:text-slate-400 font-medium mr-2">
-              <Filter className="w-3.5 h-3.5" /> Filters
-              <span className="w-5 h-5 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] ml-1">2</span>
-            </Button>
+          <PopoverTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-100 hover:text-slate-900 h-8 px-3 gap-1.5 text-slate-600 dark:text-slate-400 font-medium mr-2 cursor-pointer">
+            <Filter className="w-3.5 h-3.5" /> Filters
+            <span className="w-5 h-5 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] ml-1">2</span>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-4" align="end">
             <div className="space-y-4">

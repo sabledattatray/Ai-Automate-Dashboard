@@ -68,36 +68,20 @@ async function startServer() {
     }
   }
 
-  app.use((req, res, next) => {
-    console.log(`[LOG] ${req.method} ${req.url}`);
-    next();
-  });
-
   app.use(express.json());
   
-  // Basic CORS/OPTIONS handler
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-  });
-
   // API router setup
   const apiRouter = express.Router();
-
+  
   apiRouter.get("/health", (req, res) => {
     res.json({ status: "ok", env: process.env.NODE_ENV, firebaseInit: admin.apps.length > 0 });
   });
 
-  apiRouter.get("/admin/users", requireAdmin, asyncHandler(async (req, res) => {
+  apiRouter.get("/admin/users", requireAdmin, asyncHandler(async (req: any, res: any) => {
     try {
-      console.log("[ADMIN] Fetching users list...");
+      console.log(`[ADMIN] Fetching users list for admin: ${req.user.email}`);
       const listUsersResult = await admin.auth().listUsers(100);
-      console.log(`[ADMIN] Found ${listUsersResult.users.length} users`);
+      console.log(`[ADMIN] Successfully fetched ${listUsersResult.users.length} users`);
       res.json(listUsersResult.users.map(u => ({
         uid: u.uid,
         email: u.email,
@@ -118,14 +102,15 @@ async function startServer() {
         msg.includes('identity toolkit') ||
         msg.includes('project_not_found') ||
         code.includes('auth/operation-not-allowed') ||
-        code.includes('auth/configuration-not-found');
+        code.includes('auth/configuration-not-found') ||
+        code.includes('auth/insufficient-permission');
 
       if (isConfigError) {
          res.status(503).json({ 
             error: "SERVICE_ACCOUNT_REQUIRED", 
-            message: "Action Required: The 'Identity Toolkit API' is likely disabled or your Firebase project is not fully configured for Admin access.",
+            message: "Action Required: Firebase Admin access is restricted. You may need to enable the Identity Toolkit API or provide a service account with 'Firebase Auth Admin' role.",
             details: err.message,
-            projectId: admin.app().options.projectId
+            projectId: admin.app().options.projectId || "unknown"
          });
       } else {
          res.status(500).json({ 
@@ -292,12 +277,23 @@ async function startServer() {
       }
   });
 
-  apiRouter.all("*", (req, res) => {
-    console.log(`[API 404] Unhandled API route: ${req.method} ${req.url}`);
+  apiRouter.all("*", (req: any, res: any) => {
+    console.log(`[API-DEBUG] Unmatched API call inside router: ${req.method} ${req.url}`);
     res.status(404).json({ error: "API Route Not Found", method: req.method, path: req.url });
   });
 
+  console.log("[LOG] Mounting /api router...");
   app.use("/api", apiRouter);
+
+  // Basic logging middleware FOR ALL OTHER REQUESTS
+  app.use((req, res, next) => {
+    console.log(`[LOG] ${new Date().toISOString()} ${req.method} ${req.url}`);
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+  });
 
   // Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
