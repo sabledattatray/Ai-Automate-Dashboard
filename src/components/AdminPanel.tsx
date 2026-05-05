@@ -33,48 +33,54 @@ export function AdminPanel() {
       });
       
       if (!res.ok) {
-         let errorMsg = `Server error ${res.status}`;
-          try {
-            const data = await res.json();
-            if (data.error === "SERVICE_ACCOUNT_REQUIRED") {
-               const details = data.details || "";
-               const projectId = data.projectId || "your-project-id";
-               const enableUrl = `https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview?project=${projectId}`;
-               
-               setErrorState(
-                  <div className="space-y-4">
-                    <p>{data.message}</p>
-                    <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800 text-xs text-left font-mono break-all max-h-32 overflow-y-auto text-rose-300">
-                       {details}
-                    </div>
-                    <Button 
-                      onClick={() => window.open(enableUrl, "_blank")}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 w-full sm:w-auto"
-                    >
-                      <LayoutDashboard className="w-4 h-4" />
-                      Enable Identity Toolkit API
-                    </Button>
-                  </div>
-               );
-               return;
-            }
-            errorMsg = data.error || errorMsg;
-         } catch(e) {
-            const text = await res.text();
-            errorMsg = `Server returned ${res.status} with non-JSON content: ${text.substring(0, 100).replace(/\n/g, "")}`;
-         }
-         throw new Error(errorMsg);
+        let errorMsg = `Server error ${res.status}`;
+        const rawText = await res.text();
+        try {
+          const data = JSON.parse(rawText);
+          if (data.error === "SERVICE_ACCOUNT_REQUIRED") {
+            const details = data.details || "";
+            const projectId = data.projectId || "your-project-id";
+            const enableUrl = `https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview?project=${projectId}`;
+            
+            setErrorState(
+              <div className="space-y-4">
+                <p>{data.message}</p>
+                <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800 text-xs text-left font-mono break-all max-h-32 overflow-y-auto text-rose-300">
+                  {details}
+                </div>
+                <Button 
+                  onClick={() => window.open(enableUrl, "_blank")}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 w-full sm:w-auto"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Enable Identity Toolkit API
+                </Button>
+              </div>
+            );
+            return;
+          }
+          errorMsg = data.error || errorMsg;
+        } catch (e) {
+          errorMsg = `Server returned ${res.status}: ${rawText.substring(0, 100).replace(/\n/g, "")}`;
+        }
+        throw new Error(errorMsg);
       }
       
       const contentType = res.headers.get("content-type") || "";
+      const rawBody = await res.text();
+      
       if (contentType.includes("application/json")) {
-         const data = await res.json();
-         setUsers(data);
+        try {
+          const data = JSON.parse(rawBody);
+          setUsers(data);
+        } catch (e) {
+          console.error(`[ADMIN] Failed to parse JSON from ${url}:`, rawBody);
+          throw new Error(`Invalid JSON response from server. Status: ${res.status}`);
+        }
       } else {
-         const text = await res.text();
-         console.error(`[ADMIN] Non-JSON response from ${url}:`, text);
-         const preview = text.substring(0, 100).replace(/\n/g, " ");
-         throw new Error(`Expected JSON but received ${contentType || "unknown content"}. Status: ${res.status}. Preview: ${preview}`);
+        console.error(`[ADMIN] Non-JSON response from ${url}:`, rawBody);
+        const preview = rawBody.substring(0, 100).replace(/\n/g, " ");
+        throw new Error(`Expected JSON but received ${contentType || "unknown content"}. Status: ${res.status}. Preview: ${preview}`);
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -108,8 +114,9 @@ export function AdminPanel() {
       
       if (!res.ok) {
         let errorData = "Failed to update password";
+        const rawText = await res.text();
         try {
-           const parsed = await res.json();
+           const parsed = JSON.parse(rawText);
            errorData = parsed.error || errorData;
         } catch(e) {}
         throw new Error(errorData as string);
@@ -136,8 +143,9 @@ export function AdminPanel() {
       
       if (!res.ok) {
          let errMsg = "Failed to delete user";
+         const rawText = await res.text();
          try {
-            const data = await res.json();
+            const data = JSON.parse(rawText);
             errMsg = data.error || errMsg;
          } catch(e) {}
          throw new Error(errMsg);

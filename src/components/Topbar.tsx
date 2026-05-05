@@ -31,12 +31,12 @@ export function Topbar() {
 
       <div className="flex items-center gap-2">
         <Popover>
-          <PopoverTrigger render={
+          <PopoverTrigger>
             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-slate-600 dark:text-slate-400 font-medium mr-2">
               <Filter className="w-3.5 h-3.5" /> Filters
               <span className="w-5 h-5 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-[10px] ml-1">2</span>
             </Button>
-          } />
+          </PopoverTrigger>
           <PopoverContent className="w-80 p-4" align="end">
             <div className="space-y-4">
               <h4 className="font-medium leading-none mb-3">Page Filters</h4>

@@ -15,8 +15,8 @@ let firebaseConfig: any = {
 
 try {
   // @ts-ignore
-  const localConfig = import.meta.glob('../../firebase-applet-config.json', { eager: true });
-  const configValues = Object.values(localConfig) as any[];
+  const localConfigs = import.meta.glob('/firebase-applet-config.json', { eager: true });
+  const configValues = Object.values(localConfigs) as any[];
   if (configValues.length > 0 && configValues[0].default) {
     const config = configValues[0].default;
     firebaseConfig = { ...firebaseConfig, ...config };
