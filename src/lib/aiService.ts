@@ -1,21 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
-
-let aiClient: GoogleGenAI | null = null;
-
-function getAiClient() {
-  if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY is not set. Please configure it in the env file.");
-    }
-    aiClient = new GoogleGenAI({ apiKey: key });
-  }
-  return aiClient;
-}
+import { getAiClient } from "./gemini";
 
 export async function generateTileInsight(title: string, type: string, dataSummary: string) {
   try {
-    const response = await getAiClient().models.generateContent({
+    const client = getAiClient();
+    if (!client) {
+      return "Error generating insight: GEMINI_API_KEY is missing.";
+    }
+
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are an expert data analyst. 
       Generate 1 concise, actionable insight for a ${type} chart titled "${title}".

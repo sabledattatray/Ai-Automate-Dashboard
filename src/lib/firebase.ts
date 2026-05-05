@@ -25,9 +25,35 @@ try {
   console.log("No local firebase config found, using environment variables.");
 }
 
-const app = firebaseConfig.apiKey && !getApps().length ? initializeApp(firebaseConfig) : (getApps().length ? getApp() : null);
-export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)') : null;
-export const auth = app ? getAuth(app) : null;
+// Check if Firebase is actually configured
+const isConfigured = !!firebaseConfig.apiKey;
+
+const app = isConfigured && !getApps().length ? initializeApp(firebaseConfig) : (getApps().length ? getApp() : null);
+
+// --- MOCK IMPLEMENTATIONS FOR DEMO MODE ---
+const mockAuth = isConfigured ? null : {
+  currentUser: JSON.parse(localStorage.getItem('lumina_demo_user') || 'null'),
+  onAuthStateChanged: (callback: any) => {
+    const user = JSON.parse(localStorage.getItem('lumina_demo_user') || 'null');
+    callback(user);
+    return () => {};
+  },
+  signOut: async () => {
+    localStorage.removeItem('lumina_demo_user');
+    window.location.reload();
+  },
+  getIdToken: async () => "demo-token"
+};
+
+const mockDb = isConfigured ? null : {
+  collection: (path: string) => ({ path, type: 'collection' }),
+  doc: (path: string, id?: string) => ({ path: id ? `${path}/${id}` : path, type: 'doc' })
+};
+// --- END MOCK ---
+
+export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)') : (mockDb as any);
+export const auth = app ? getAuth(app) : (mockAuth as any);
+export const isRealFirebase = !!app;
 
 export enum OperationType {
   CREATE = 'create',

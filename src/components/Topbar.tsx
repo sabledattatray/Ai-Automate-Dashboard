@@ -17,8 +17,14 @@ export function Topbar() {
   const handlePresent = () => toast.info("Entering presentation mode...");
   const handleLogout = () => {
     if (auth) {
-      signOut(auth);
+      if (auth.signOut) {
+         auth.signOut();
+      } else {
+         signOut(auth);
+      }
+      localStorage.removeItem('lumina_demo_user');
       toast.success("Successfully logged out");
+      window.location.reload();
     }
   };
 

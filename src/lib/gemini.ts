@@ -2,12 +2,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { TileConfig } from "../store/canvasStore";
 
 let aiClient: GoogleGenAI | null = null;
-function getAiClient() {
+export function getAiClient() {
   if (!aiClient) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
       console.error("[AI] GEMINI_API_KEY is missing from environment");
-      throw new Error("AI Configuration Error: GEMINI_API_KEY is missing. Please check your settings.");
+      // Don't throw here, return null and handle it in the service
+      return null;
     }
     console.log("[AI] Initializing GoogleGenAI client...");
     aiClient = new GoogleGenAI({ apiKey: key });
@@ -16,7 +17,15 @@ function getAiClient() {
 }
 
 export async function generateDashboardLayout(columns: string[], sampleData: any[], datasetId: string, datasetName: string): Promise<TileConfig[]> {
-  const prompt = `
+  try {
+    const client = getAiClient();
+    if (!client) {
+      throw new Error("AI Configuration Error: GEMINI_API_KEY is missing. Please contact support or check your environment variables.");
+    }
+
+    console.log(`[AI] Generating layout for dataset: ${datasetName} with ${columns.length} columns`);
+    
+    const prompt = `
 You are an expert Data Analyst and BI Dashboard Designer.
 I have a dataset named "${datasetName}".
 Here are the columns: ${columns.join(", ")}.
@@ -67,9 +76,7 @@ Do NOT use TEXT type.
 Make sure xAxis and yAxis match the exact column names provided.
 `;
 
-  try {
-    console.log(`[AI] Generating layout for dataset: ${datasetName} with ${columns.length} columns`);
-    const response = await getAiClient().models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
@@ -98,13 +105,14 @@ Make sure xAxis and yAxis match the exact column names provided.
     });
 
     console.log("[AI] Response received:", response);
-    let text = response.text;
+    const text = response.text;
     if (!text) throw new Error("AI returned empty response");
     
-    // Remove markdown code blocks if present
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    // In application/json mode, it should be clean JSON already.
+    // We only sanitize if it looks like markdown.
+    const jsonStr = text.startsWith("```") ? text.replace(/```json/g, "").replace(/```/g, "").trim() : text;
     
-    const tilesRaw = JSON.parse(text);
+    const tilesRaw = JSON.parse(jsonStr);
     
     // Add unique IDs and datasetId to each tile
     return tilesRaw.map((tile: any) => ({
@@ -112,8 +120,12 @@ Make sure xAxis and yAxis match the exact column names provided.
       id: Math.random().toString(36).substring(7),
       datasetId,
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to generate dashboard:", error);
+    // Be more descriptive about the error
+    if (error.message?.includes("API_KEY")) {
+       throw new Error("Gemini API key is missing. Please ensure GEMINI_API_KEY is defined in your environment.");
+    }
     throw error;
   }
 }

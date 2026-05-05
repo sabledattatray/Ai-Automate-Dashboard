@@ -197,13 +197,28 @@ export function AuthPage() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 mt-2"
-                disabled={loading}
-              >
-                {loading ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
-              </Button>
+              <div className="flex flex-col gap-2 mt-2">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                  disabled={loading}
+                >
+                  {loading ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                  onClick={() => {
+                    const demoUser = { uid: 'demo-user', email: 'guest@luminabi.demo', displayName: 'Guest User' };
+                    localStorage.setItem('lumina_demo_user', JSON.stringify(demoUser));
+                    window.location.reload();
+                  }}
+                >
+                  Continue as Guest
+                </Button>
+              </div>
             </form>
 
             <div className="relative">

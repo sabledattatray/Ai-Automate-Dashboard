@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // 0. Default Deny catch-all
     match /{document=**} {
       allow read, write: if false;
     }
@@ -19,50 +19,59 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
+    // Check if user is the known admin by email
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'sabledattatray@gmail.com' && request.auth.token.email_verified == true;
     }
 
     // --- Validation Blueprints ---
-
+    
     function isValidDataset(data) {
-      return data.userId == request.auth.uid
-        && data.name is string && data.name.size() <= 256
-        && (data.get('columns', []) is list)
-        && (data.get('data', []) is list)
-        && (data.get('size', 0) is number)
-        && (data.get('lastModified', 0) is number);
+      return data.keys().hasAll(['id', 'name', 'columns', 'data'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.columns is list && data.columns.size() <= 200
+        && data.data is list && data.data.size() <= 10000;
     }
 
     function isValidDashboard(data) {
-      return data.userId == request.auth.uid
-        && (data.tiles is list && data.tiles.size() <= 100)
-        && (data.get('updatedAt', 0) is number);
+      return data.keys().hasAll(['tiles'])
+        && data.tiles is list && data.tiles.size() <= 200;
     }
 
     // --- Collection Routes ---
 
     match /users/{userId} {
-      // Basic profile read
-      allow get: if isOwner(userId);
-
+      // Basic profile or path access
+      allow get: if isOwner(userId) || isAdmin();
+      
       match /datasets/{datasetId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDataset(incoming()) && isValidId(datasetId);
-        allow update: if isOwner(userId) && isValidDataset(incoming()) 
-          && incoming().userId == existing().userId; // Immutable owner
+        allow list: if isOwner(userId) || isAdmin();
+        allow get: if isOwner(userId) || isAdmin();
+        
+        allow create: if isOwner(userId) 
+          && isValidId(datasetId) 
+          && isValidDataset(request.resource.data)
+          && request.resource.data.id == datasetId;
+
+        allow update: if isOwner(userId)
+          && isValidDataset(request.resource.data)
+          && request.resource.data.id == resource.data.id;
+
         allow delete: if isOwner(userId);
       }
 
       match /dashboards/{dashboardId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDashboard(incoming()) && isValidId(dashboardId);
-        allow update: if isOwner(userId) && isValidDashboard(incoming())
-          && incoming().userId == existing().userId; // Immutable owner
+        allow list: if isOwner(userId) || isAdmin();
+        allow get: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId)
+          && isValidId(dashboardId)
+          && isValidDashboard(request.resource.data);
+
+        allow update: if isOwner(userId)
+          && isValidDashboard(request.resource.data);
+
         allow delete: if isOwner(userId);
       }
     }

@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import "dotenv/config";
 import { DatabaseSync } from "node:sqlite";
 import csvParser from "csv-parser";
 import admin from "firebase-admin";
@@ -11,6 +12,10 @@ const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+console.log("[SERVER-INIT] Starting with version 1.2.9");
+console.log(`[SERVER-INIT] Current DIR: ${process.cwd()}`);
+console.log(`[SERVER-INIT] PID: ${process.pid}`);
 
 const upload = multer({ dest: "uploads/" });
 const db = new DatabaseSync("database.sqlite");
@@ -23,6 +28,7 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
 };
 
 const requireAdmin = asyncHandler(async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.log(`[AUTH-CHECK] Checking token for ${req.url}`);
   const token = req.headers.authorization?.split("Bearer ")[1];
   if (!token) {
     console.warn("[ADMIN AUTH] No token provided");
@@ -31,6 +37,7 @@ const requireAdmin = asyncHandler(async (req: express.Request, res: express.Resp
   
   try {
     const decoded = await admin.auth().verifyIdToken(token);
+    console.log(`[AUTH-CHECK] Decoded token for: ${decoded.email}`);
     if (decoded.email !== "sabledattatray@gmail.com") {
       console.warn(`[ADMIN AUTH] Forbidden access attempt from: ${decoded.email}`);
       return res.status(403).json({ error: "Forbidden. Admin access required." });
@@ -47,41 +54,70 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log(`[STARTUP] NODE_ENV: ${process.env.NODE_ENV}, PORT: ${PORT}`);
+  
   // Initialize Admin
+  console.log("[ADMIN-INIT] Initializing Firebase Admin...");
   if (!admin.apps.length) {
     try {
       if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        console.log("[ADMIN-INIT] Using FIREBASE_SERVICE_ACCOUNT_JSON");
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount)
         });
-      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_CONFIG) {
+      } else if (process.env.FIREBASE_CONFIG) {
+        console.log("[ADMIN-INIT] Using FIREBASE_CONFIG");
         admin.initializeApp();
       } else {
+        console.log("[ADMIN-INIT] Falling back to default project ID");
         admin.initializeApp({
            projectId: "gen-lang-client-0544770816"
         });
       }
-      console.log("[ADMIN AUTH] Firebase Admin initialized");
+      console.log(`[ADMIN-INIT] Firebase Admin initialized. App name: ${admin.app().name}, Project: ${admin.app().options.projectId}`);
     } catch (e) {
-      console.error("[ADMIN AUTH] Failed to initialize Firebase Admin:", e);
+      console.error("[ADMIN-INIT] Failed to initialize Firebase Admin:", e);
     }
   }
 
-  app.use(express.json());
-  
-  // API router setup
-  const apiRouter = express.Router();
-  
-  apiRouter.get("/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV, firebaseInit: admin.apps.length > 0 });
+  // 1. Logging and CORS MUST be first
+  app.use((req, res, next) => {
+    console.log(`[HTTP-DEBUG] ${req.method} ${req.url} (path: ${req.path})`);
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
   });
 
-  apiRouter.get("/admin/users", requireAdmin, asyncHandler(async (req: any, res: any) => {
+  app.use(express.json());
+
+  // Direct test route to verify server is alive and responding with JSON
+  app.get("/api/ping", (req, res) => {
+    res.json({ pong: true, time: Date.now() });
+  });
+  
+  // API Routes - Directly on app
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      version: "1.2.8",
+      env: process.env.NODE_ENV, 
+      firebaseInit: !!admin.apps.length,
+      timestamp: new Date().toISOString(),
+      projectId: admin.app().options.projectId
+    });
+  });
+
+  app.get("/api/admin/users", requireAdmin, asyncHandler(async (req: any, res: any) => {
     try {
-      console.log(`[ADMIN] Fetching users list for admin: ${req.user.email}`);
+      console.log(`[ADMIN-API] Fetching users list for admin: ${req.user.email}`);
       const listUsersResult = await admin.auth().listUsers(100);
-      console.log(`[ADMIN] Successfully fetched ${listUsersResult.users.length} users`);
+      console.log(`[ADMIN-API] Successfully fetched ${listUsersResult.users.length} users`);
       res.json(listUsersResult.users.map(u => ({
         uid: u.uid,
         email: u.email,
@@ -91,10 +127,10 @@ async function startServer() {
         providers: u.providerData.map(p => p.providerId)
       })));
     } catch (err: any) {
-      console.error("[ADMIN] List users error:", err);
+      console.error("[ADMIN-API] List users error:", err);
       
-      const msg = (err.message || "").toLowerCase();
       const code = err.code || "";
+      const msg = (err.message || "").toLowerCase();
       
       const isConfigError = 
         msg.includes('credential') || 
@@ -106,23 +142,23 @@ async function startServer() {
         code.includes('auth/insufficient-permission');
 
       if (isConfigError) {
-         res.status(503).json({ 
+         return res.status(503).json({ 
             error: "SERVICE_ACCOUNT_REQUIRED", 
             message: "Action Required: Firebase Admin access is restricted. You may need to enable the Identity Toolkit API or provide a service account with 'Firebase Auth Admin' role.",
             details: err.message,
-            projectId: admin.app().options.projectId || "unknown"
-         });
-      } else {
-         res.status(500).json({ 
-           error: "Internal Server Error", 
-           message: err.message || "Failed to list users",
-           code: err.code
+            projectId: admin.app().options.projectId || "gen-lang-client-0544770816"
          });
       }
+      
+      res.status(500).json({ 
+        error: "Internal Server Error", 
+        message: err.message || "Failed to list users",
+        code: code
+      });
     }
   }));
 
-  apiRouter.put("/admin/users/:uid/password", requireAdmin, asyncHandler(async (req, res) => {
+  app.put("/api/admin/users/:uid/password", requireAdmin, asyncHandler(async (req: any, res: any) => {
     try {
       const { password } = req.body;
       const { uid } = req.params;
@@ -130,24 +166,23 @@ async function startServer() {
       await admin.auth().updateUser(uid, { password });
       res.json({ success: true });
     } catch (err: any) {
-      console.error(`[ADMIN] Update password error for ${req.params.uid}:`, err);
+      console.error(`[ADMIN-API] Update password error for ${req.params.uid}:`, err);
       res.status(500).json({ error: err.message || "Failed to update password" });
     }
   }));
 
-  apiRouter.delete("/admin/users/:uid", requireAdmin, asyncHandler(async (req, res) => {
+  app.delete("/api/admin/users/:uid", requireAdmin, asyncHandler(async (req: any, res: any) => {
     try {
       const { uid } = req.params;
       await admin.auth().deleteUser(uid);
       res.json({ success: true });
     } catch (err: any) {
-      console.error(`[ADMIN] Delete user error for ${req.params.uid}:`, err);
+      console.error(`[ADMIN-API] Delete user error for ${req.params.uid}:`, err);
       res.status(500).json({ error: err.message || "Failed to delete user" });
     }
   }));
 
-  // Data APIs
-  apiRouter.post("/upload", upload.single("file"), (req, res) => {
+  app.post("/api/upload", upload.single("file"), (req: any, res: any) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const fileId = req.file.filename;
@@ -208,14 +243,14 @@ async function startServer() {
     
     stream.on("data", (data) => {
       if (!isCreated) return;
-      if (previewData.length < 100) previewData.push(data);
+      if (previewData.length < 20) previewData.push(data);
       batch.push(data);
       if (batch.length >= BATCH_SIZE) flushBatch();
     });
 
     stream.on("error", (err) => {
        console.error("CSV parse error:", err);
-       res.status(500).json({ error: "Failed to parse CSV" });
+       if (!res.headersSent) res.status(500).json({ error: "Failed to parse CSV" });
     });
     
     stream.on("end", () => {
@@ -224,7 +259,7 @@ async function startServer() {
     });
   });
 
-  apiRouter.post("/query", (req, res) => {
+  app.post("/api/query", (req: any, res: any) => {
       const { tableName, xAxis, yAxis, aggregation, type } = req.body;
       if (!tableName || !tableName.startsWith("data_")) return res.status(400).json({ error: "Invalid table" });
       
@@ -277,28 +312,16 @@ async function startServer() {
       }
   });
 
-  apiRouter.all("*", (req: any, res: any) => {
-    console.log(`[API-DEBUG] Unmatched API call inside router: ${req.method} ${req.url}`);
-    res.status(404).json({ error: "API Route Not Found", method: req.method, path: req.url });
-  });
-
-  console.log("[LOG] Mounting /api router...");
-  app.use("/api", apiRouter);
-
-  // Basic logging middleware FOR ALL OTHER REQUESTS
-  app.use((req, res, next) => {
-    console.log(`[LOG] ${new Date().toISOString()} ${req.method} ${req.url}`);
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
+  // Catch-all for other /api routes
+  app.all("/api/*", (req: any, res: any) => {
+    console.warn(`[API-DEBUG] 404 hit for ${req.method} ${req.url}`);
+    res.status(404).json({ error: "API Route Not Found", path: req.url });
   });
 
   // Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("[GLOBAL ERROR]", err);
-    if (req.path.startsWith("/api/")) {
+    console.error(`[GLOBAL ERROR] ${req.method} ${req.url}:`, err);
+    if (req.originalUrl.startsWith("/api/")) {
        return res.status(500).json({ error: "Internal Server Error", message: err.message });
     }
     next(err);
@@ -312,8 +335,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production (like Vercel), the static files are served by the host
-    // or we can serve them manually if needed, but Vercel's standard is to use /api for functions
     const distPath = path.join(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
@@ -323,12 +344,10 @@ async function startServer() {
     }
   }
 
-  // Only listen if not in a serverless environment (like Vercel)
-  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
+  // Always listen in this environment
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
   
   return app;
 }

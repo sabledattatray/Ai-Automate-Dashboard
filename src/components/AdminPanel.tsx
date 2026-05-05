@@ -23,11 +23,24 @@ export function AdminPanel() {
         setLoading(false);
         return;
       }
+
+      // Check if we are in demo mode
+      if (auth.currentUser.uid === 'demo-user') {
+        setUsers([
+          { uid: 'demo-user', email: 'guest@luminabi.demo', displayName: 'Guest User', providers: ['demo'], creationTime: Date.now(), lastSignInTime: Date.now() },
+          { uid: 'example-1', email: 'user@example.com', displayName: 'Example User', providers: ['google'], creationTime: Date.now() - 86400000, lastSignInTime: Date.now() - 3600000 }
+        ]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setErrorState(null);
+
       const token = await auth.currentUser.getIdToken();
       const url = "/api/admin/users";
       console.log(`[ADMIN] Fetching from ${url}`);
+      
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -80,7 +93,26 @@ export function AdminPanel() {
       } else {
         console.error(`[ADMIN] Non-JSON response from ${url}:`, rawBody);
         const preview = rawBody.substring(0, 100).replace(/\n/g, " ");
-        throw new Error(`Expected JSON but received ${contentType || "unknown content"}. Status: ${res.status}. Preview: ${preview}`);
+        
+        setErrorState(
+          <div className="space-y-4">
+            <div className="bg-rose-500/10 p-4 rounded-lg border border-rose-500/20 text-rose-400 text-sm">
+              <p className="font-bold mb-1">Server Communication Error</p>
+              <p>The server returned an unexpected response (HTML instead of data). This usually means the API endpoint was not found or is being redirected.</p>
+            </div>
+            <div className="bg-slate-950/80 p-3 rounded border border-slate-800 text-[10px] font-mono whitespace-pre-wrap overflow-x-auto opacity-70">
+              {preview}...
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={fetchUsers}
+              className="w-full border-slate-700 hover:bg-slate-800 text-slate-300"
+            >
+              Try Reconnecting
+            </Button>
+          </div>
+        );
+        return;
       }
     } catch (err: any) {
       toast.error(err.message);

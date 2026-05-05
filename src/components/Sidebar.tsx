@@ -10,12 +10,22 @@ import { toast } from "sonner";
 import { generateDashboardLayout } from "../lib/gemini";
 import { auth } from "../lib/firebase";
 
+import { useAuthState } from "react-firebase-hooks/auth";
+import { isRealFirebase } from "../lib/firebase";
+
 export function Sidebar() {
   const { addTile, setTiles, currentView, setCurrentView } = useCanvasStore();
   const { datasets, activeDatasetId } = useDatasetStore();
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const isAdmin = auth?.currentUser?.email === "sabledattatray@gmail.com";
+  // Use useAuthState for reactive auth updates
+  const safeAuthForHook = isRealFirebase ? auth : {
+    currentUser: JSON.parse(localStorage.getItem('lumina_demo_user') || 'null'),
+    onAuthStateChanged: (cb: any) => { cb(JSON.parse(localStorage.getItem('lumina_demo_user') || 'null')); return () => {}; }
+  };
+  const [user] = useAuthState(safeAuthForHook as any);
+
+  const isAdmin = user?.email === "sabledattatray@gmail.com" || user?.uid === 'demo-user';
 
   const handleGenerateDashboard = async () => {
     if (!activeDatasetId) return;

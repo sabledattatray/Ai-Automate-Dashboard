@@ -2,38 +2,40 @@
   "entities": {
     "Dataset": {
       "title": "Dataset",
-      "description": "Metadata and sample data for a user's dataset.",
+      "description": "Represents a data source with columns and rows",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
+        "id": { "type": "string" },
         "name": { "type": "string" },
-        "columns": { "type": "array" },
-        "data": { "type": "array" },
-        "size": { "type": "number" },
-        "lastModified": { "type": "number" }
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "data": { "type": "array", "items": { "type": "object" } },
+        "rowCount": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
-      "required": ["userId", "name"]
+      "required": ["id", "name", "columns", "data"]
     },
     "Dashboard": {
       "title": "Dashboard",
-      "description": "Stored layout and configuration of a user dashboard.",
+      "description": "Contains a list of tiles/widgets for the dashboard layout",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "tiles": { "type": "array" },
+        "tiles": { 
+          "type": "array", 
+          "items": { "type": "object" }
+        },
         "updatedAt": { "type": "number" }
       },
-      "required": ["userId", "tiles"]
+      "required": ["tiles"]
     }
   },
   "firestore": {
-    "users/{userId}/datasets/{datasetId}": {
+    "/users/{userId}/datasets/{datasetId}": {
       "schema": "Dataset",
-      "description": "User-specific datasets."
+      "description": "Store individual datasets owned by a user"
     },
-    "users/{userId}/dashboards/{dashboardId}": {
+    "/users/{userId}/dashboards/{dashboardId}": {
       "schema": "Dashboard",
-      "description": "User-specific dashboard layouts."
+      "description": "Store dashboard layouts owned by a user"
     }
   }
 }

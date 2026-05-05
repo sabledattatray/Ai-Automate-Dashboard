@@ -9,7 +9,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "./components/ui/sonner";
 import { useState, useEffect } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
+import { auth, db, handleFirestoreError, OperationType, isRealFirebase } from "./lib/firebase";
 import { AuthPage } from "./components/AuthPage";
 import { Sparkles } from "lucide-react";
 import { useDatasetStore } from "./store/datasetStore";
@@ -46,10 +46,6 @@ function ConfigRequired() {
 }
 
 export default function App() {
-  if (!auth) {
-    return <ConfigRequired />;
-  }
-
   return (
     <>
       <MainApp />
@@ -60,9 +56,40 @@ export default function App() {
 
 function MainApp() {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [user, loading, error] = useAuthState(auth as any);
-  const { datasets, setDatasets, addDataset } = useDatasetStore();
+  
+  // Create a safe auth object for the hook to prevent crashes
+  // react-firebase-hooks needs currentUser and onAuthStateChanged
+  const safeAuth = isRealFirebase ? auth : {
+    currentUser: null,
+    onAuthStateChanged: (cb: any) => { cb(null); return () => {}; }
+  };
+  
+  const [firebaseUser, firebaseLoading, firebaseError] = useAuthState(safeAuth as any);
+  
+  // Combine firebase user with potential local demo user
+  const [demoUser, setDemoUser] = useState<any>(null);
+  const user = isRealFirebase ? firebaseUser : demoUser;
+  const loading = isRealFirebase ? firebaseLoading : false; 
+  const error = isRealFirebase ? firebaseError : null;
+
+  useEffect(() => {
+    // Check for demo user if firebase auth is not configured
+    if (!isRealFirebase) {
+      const localUser = localStorage.getItem('lumina_demo_user');
+      if (localUser) {
+        setDemoUser(JSON.parse(localUser));
+      }
+    }
+  }, []);
+  const { datasets, setDatasets, addDataset, setActiveDataset, activeDatasetId } = useDatasetStore();
   const { tiles, setTiles, currentView, setCurrentView } = useCanvasStore();
+
+  // Auto-select first dataset if none is active
+  useEffect(() => {
+    if (datasets.length > 0 && !activeDatasetId) {
+       setActiveDataset(datasets[0].id);
+    }
+  }, [datasets, activeDatasetId, setActiveDataset]);
   
   // Sync logic flags
   const [initialSyncDone, setInitialSyncDone] = useState(false);
@@ -82,9 +109,64 @@ function MainApp() {
   useEffect(() => {
     if (!user) return;
     
+    // Check if we are in demo mode (no real db)
+    const isDemo = !isRealFirebase;
+
     // Load once
     const loadUserData = async () => {
       try {
+        if (isDemo) {
+          // Load from localStorage for demo
+          const localData = localStorage.getItem(`lumina_user_${user.uid}_data`);
+          if (localData) {
+            const parsed = JSON.parse(localData);
+            if (parsed.datasets) setDatasets(parsed.datasets);
+            if (parsed.tiles) setTiles(parsed.tiles);
+          } else {
+            // INITIALIZE GUEST WITH SAMPLE DATA
+            const sampleDatasets = [
+              {
+                id: 'sample-sales',
+                name: 'Q3 Sales Data (Sample)',
+                type: 'csv',
+                data: [
+                  { month: 'Jul', sales: 4500, targets: 4000 },
+                  { month: 'Aug', sales: 5200, targets: 4000 },
+                  { month: 'Sep', sales: 6100, targets: 4000 },
+                ],
+                updatedAt: Date.now()
+              },
+              {
+                id: 'sample-marketing',
+                name: 'Marketing Campaign Performance',
+                type: 'csv',
+                data: [
+                  { source: 'Email', leads: 120 },
+                  { source: 'Social', leads: 450 },
+                  { source: 'Direct', leads: 80 },
+                ],
+                updatedAt: Date.now()
+              }
+            ];
+            const sampleTiles = [
+              { id: 'tile-1', type: 'chart', x: 0, y: 0, w: 6, h: 4, datasetId: 'sample-sales', title: 'Sales Performance' },
+              { id: 'tile-2', type: 'chart', x: 6, y: 0, w: 6, h: 4, datasetId: 'sample-marketing', title: 'Leads by Channel' }
+            ];
+            
+            setDatasets(sampleDatasets as any);
+            setTiles(sampleTiles as any);
+            setActiveDataset(sampleDatasets[0].id);
+            
+            // Save initial sample to local storage
+            localStorage.setItem(`lumina_user_${user.uid}_data`, JSON.stringify({
+              datasets: sampleDatasets,
+              tiles: sampleTiles
+            }));
+          }
+          setInitialSyncDone(true);
+          return;
+        }
+
         // Load Datasets
         const datasetsPath = `users/${user.uid}/datasets`;
         try {
@@ -120,12 +202,22 @@ function MainApp() {
     loadUserData();
   }, [user]);
 
-  // Save changes to Firestore
+  // Save changes
   useEffect(() => {
     if (!user || !initialSyncDone) return;
     
+    const isDemo = !isRealFirebase;
+
     const saveToFirestore = async () => {
        try {
+         if (isDemo) {
+           localStorage.setItem(`lumina_user_${user.uid}_data`, JSON.stringify({
+             datasets,
+             tiles
+           }));
+           return;
+         }
+
          // Save main dashboard layouts
          const dashboardPath = `users/${user.uid}/dashboards/main`;
          try {
