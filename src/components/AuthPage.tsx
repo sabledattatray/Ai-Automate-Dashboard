@@ -6,9 +6,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { toast } from "sonner";
-import { Sparkles, Mail, Lock, CheckCircle2, Github, Linkedin } from "lucide-react";
+import { Sparkles, Mail, Lock, CheckCircle2, Github, Linkedin, Shield } from "lucide-react";
+import { useCanvasStore } from "../store/canvasStore";
 
 export function AuthPage() {
+  const { setCurrentView } = useCanvasStore();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,7 +63,9 @@ export function AuthPage() {
     } catch (error: any) {
        console.error("Google Auth Error:", error);
        if (error.code === "auth/unauthorized-domain") {
-         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+         toast.error("Domain unauthorized. Please add " + window.location.hostname + " to 'Authorized domains' in Firebase Console.", { duration: 8000 });
+       } else if (error.code === "auth/operation-not-allowed") {
+         toast.error("Google sign-in is not enabled in Firebase Console.", { duration: 8000 });
        } else {
          toast.error(error.message);
        }
@@ -81,7 +85,9 @@ export function AuthPage() {
     } catch (error: any) {
        console.error("Github Auth Error:", error);
        if (error.code === "auth/unauthorized-domain") {
-         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+         toast.error("Domain unauthorized. Please add " + window.location.hostname + " to 'Authorized domains' in Firebase Console.", { duration: 8000 });
+       } else if (error.code === "auth/operation-not-allowed") {
+         toast.error("GitHub sign-in is not enabled. Go to Firebase Console -> Authentication -> Sign-in method to enable it with your GitHub Client ID/Secret.", { duration: 10000 });
        } else {
          toast.error("Github login failed: " + error.message);
        }
@@ -101,7 +107,9 @@ export function AuthPage() {
     } catch (error: any) {
        console.error("LinkedIn Auth Error:", error);
        if (error.code === "auth/unauthorized-domain") {
-         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+         toast.error("Domain unauthorized. Please add " + window.location.hostname + " to 'Authorized domains' in Firebase Console.", { duration: 8000 });
+       } else if (error.code === "auth/operation-not-allowed") {
+         toast.error("LinkedIn sign-in is not enabled. Go to Firebase Console -> Authentication -> Sign-in method to enable it.", { duration: 10000 });
        } else {
          toast.error("LinkedIn login failed or not configured yet. Error: " + error.message);
        }
@@ -251,6 +259,17 @@ export function AuthPage() {
                 {isLogin ? "Sign up" : "Sign in"}
               </button>
             </p>
+            <div className="pt-6 flex items-center justify-center gap-4 border-t border-slate-100 dark:border-slate-800">
+              <button 
+                onClick={() => setCurrentView('privacy')}
+                className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-indigo-500 transition-colors"
+              >
+                <Shield className="w-3 h-3" />
+                Privacy Policy
+              </button>
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+              <span className="text-xs text-slate-400 font-medium cursor-default">Terms of Service</span>
+            </div>
           </div>
         </div>
       </div>

@@ -196,6 +196,18 @@ export function Sidebar() {
           <Sparkles className="w-4 h-4 flex-shrink-0 text-white drop-shadow-sm" />
           <span className="truncate text-white drop-shadow-md">{isGenerating ? "Generating..." : "AI Auto Generate"}</span>
         </Button>
+        
+        <div className="mt-3 flex items-center justify-between px-1">
+          <button 
+            onClick={() => setCurrentView('privacy')}
+            className="text-[10px] uppercase tracking-wider font-bold text-slate-400 hover:text-indigo-500 dark:text-slate-500 transition-colors flex items-center gap-1"
+          >
+            <Shield className="w-2.5 h-2.5" />
+            Privacy
+          </button>
+          <span className="text-[10px] text-slate-300 dark:text-slate-800">|</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">v1.2.4</span>
+        </div>
       </div>
     </div>
   );

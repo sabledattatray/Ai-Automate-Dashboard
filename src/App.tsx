@@ -16,6 +16,7 @@ import { useDatasetStore } from "./store/datasetStore";
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 
 import { AdminPanel } from "./components/AdminPanel";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
 
 function ConfigRequired() {
   return (
@@ -69,6 +70,13 @@ function MainApp() {
   useEffect(() => {
     // Force dark mode for Elegant Dark theme
     document.documentElement.classList.add('dark');
+
+    // Check for query param for direct linking (e.g. privacy policy)
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (viewParam === 'privacy') {
+      setCurrentView('privacy');
+    }
   }, []);
 
   useEffect(() => {
@@ -181,10 +189,23 @@ function MainApp() {
     );
   }
 
+  // Handle Privacy Policy independently of auth
+  if (currentView === "privacy") {
+    return (
+      <TooltipProvider>
+        <div className="flex h-screen w-screen bg-[#0A0A0B] text-slate-300 font-sans antialiased overflow-hidden">
+          <PrivacyPolicy />
+          <Toaster />
+        </div>
+      </TooltipProvider>
+    );
+  }
+
   if (!user) {
     return (
       <>
         <AuthPage />
+        <Toaster />
       </>
     );
   }
@@ -214,6 +235,8 @@ function MainApp() {
                  </div>
                </div>
             </div>
+          ) : currentView === "privacy" ? (
+            <PrivacyPolicy />
           ) : (
             <>
               <CanvasGrid />

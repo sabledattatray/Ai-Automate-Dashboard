@@ -33,14 +33,14 @@ interface CanvasState {
   tiles: TileConfig[];
   selectedTileId: string | null;
   mode: "view" | "edit" | "presentation";
-  currentView: "dashboard" | "reports" | "datasets" | "workspace" | "ai_insights" | "admin";
+  currentView: "dashboard" | "reports" | "datasets" | "workspace" | "ai_insights" | "admin" | "privacy";
   addTile: (type: TileType, w: number, h: number) => void;
   removeTile: (id: string) => void;
   updateTile: (id: string, updates: Partial<TileConfig>) => void;
   selectTile: (id: string | null) => void;
   setTiles: (tiles: TileConfig[]) => void;
   setMode: (mode: "view" | "edit" | "presentation") => void;
-  setCurrentView: (view: "dashboard" | "reports" | "datasets" | "workspace" | "ai_insights" | "admin") => void;
+  setCurrentView: (view: "dashboard" | "reports" | "datasets" | "workspace" | "ai_insights" | "admin" | "privacy") => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
