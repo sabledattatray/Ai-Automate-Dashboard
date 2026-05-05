@@ -15,7 +15,7 @@ export function Sidebar() {
   const { datasets, activeDatasetId } = useDatasetStore();
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const isAdmin = auth.currentUser?.email === "sabledattatray@gmail.com";
+  const isAdmin = auth?.currentUser?.email === "sabledattatray@gmail.com";
 
   const handleGenerateDashboard = async () => {
     if (!activeDatasetId) return;

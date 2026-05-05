@@ -15,6 +15,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   const syncUserToFirestore = async (user: any) => {
+    if (!db) return;
     const userRef = doc(db, "users", user.uid);
     const docSnap = await getDoc(userRef);
     if (!docSnap.exists()) {
@@ -28,6 +29,10 @@ export function AuthPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    if (!auth) {
+      toast.error("Firebase not configured");
+      return;
+    }
     try {
       if (isLogin) {
         const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -46,6 +51,7 @@ export function AuthPage() {
   };
 
   const signInWithGoogle = async () => {
+    if (!auth) return;
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -53,13 +59,19 @@ export function AuthPage() {
       await syncUserToFirestore(cred.user);
       toast.success("Logged in with Google!");
     } catch (error: any) {
-       toast.error(error.message);
+       console.error("Google Auth Error:", error);
+       if (error.code === "auth/unauthorized-domain") {
+         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+       } else {
+         toast.error(error.message);
+       }
     } finally {
       setLoading(false);
     }
   };
 
   const signInWithGithub = async () => {
+    if (!auth) return;
     setLoading(true);
     try {
       const provider = new GithubAuthProvider();
@@ -67,13 +79,19 @@ export function AuthPage() {
       await syncUserToFirestore(cred.user);
       toast.success("Logged in with Github!");
     } catch (error: any) {
-       toast.error("Github login failed: " + error.message);
+       console.error("Github Auth Error:", error);
+       if (error.code === "auth/unauthorized-domain") {
+         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+       } else {
+         toast.error("Github login failed: " + error.message);
+       }
     } finally {
       setLoading(false);
     }
   };
 
   const signInWithLinkedin = async () => {
+    if (!auth) return;
     setLoading(true);
     try {
       const provider = new OAuthProvider('oidc.linkedin'); // Requires Firebase Enterprise or specific Custom Auth config, falling back to mock or standard OAuth if configured
@@ -81,7 +99,12 @@ export function AuthPage() {
       await syncUserToFirestore(cred.user);
       toast.success("Logged in with LinkedIn!");
     } catch (error: any) {
-       toast.error("LinkedIn login failed or not configured yet. Error: " + error.message);
+       console.error("LinkedIn Auth Error:", error);
+       if (error.code === "auth/unauthorized-domain") {
+         toast.error("Domain unauthorized. Add " + window.location.hostname + " to Firebase Authorized Domains.", { duration: 6000 });
+       } else {
+         toast.error("LinkedIn login failed or not configured yet. Error: " + error.message);
+       }
     } finally {
       setLoading(false);
     }

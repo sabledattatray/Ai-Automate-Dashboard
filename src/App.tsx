@@ -9,7 +9,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "./components/ui/sonner";
 import { useState, useEffect } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "./lib/firebase";
+import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { AuthPage } from "./components/AuthPage";
 import { Sparkles } from "lucide-react";
 import { useDatasetStore } from "./store/datasetStore";
@@ -49,7 +49,12 @@ export default function App() {
     return <ConfigRequired />;
   }
 
-  return <MainApp />;
+  return (
+    <>
+      <MainApp />
+      <Toaster />
+    </>
+  );
 }
 
 function MainApp() {
@@ -73,20 +78,29 @@ function MainApp() {
     const loadUserData = async () => {
       try {
         // Load Datasets
-        const datasetsSnap = await getDocs(collection(db, `users/${user.uid}/datasets`));
-        if (!datasetsSnap.empty) {
-          const loadedDatasets = datasetsSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
-          setDatasets(loadedDatasets);
+        const datasetsPath = `users/${user.uid}/datasets`;
+        try {
+          const datasetsSnap = await getDocs(collection(db!, datasetsPath));
+          if (!datasetsSnap.empty) {
+            const loadedDatasets = datasetsSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+            setDatasets(loadedDatasets);
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, datasetsPath);
         }
 
         // Load Dashboards
-        const dashboardRef = doc(db, `users/${user.uid}/dashboards`, "main");
-        const dashboardSnap = await getDoc(dashboardRef);
-        if (dashboardSnap.exists()) {
-          const data = dashboardSnap.data();
-          if (data.tiles) {
-            setTiles(data.tiles);
+        const dashboardPath = `users/${user.uid}/dashboards/main`;
+        try {
+          const dashboardSnap = await getDoc(doc(db!, dashboardPath));
+          if (dashboardSnap.exists()) {
+            const data = dashboardSnap.data();
+            if (data.tiles) {
+              setTiles(data.tiles);
+            }
           }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, dashboardPath);
         }
       } catch (err) {
         console.error("Failed to load user data:", err);
@@ -105,26 +119,35 @@ function MainApp() {
     const saveToFirestore = async () => {
        try {
          // Save main dashboard layouts
-         await setDoc(doc(db, `users/${user.uid}/dashboards`, "main"), {
-           userId: user.uid,
-           tiles: tiles,
-           updatedAt: Date.now()
-         });
+         const dashboardPath = `users/${user.uid}/dashboards/main`;
+         try {
+           await setDoc(doc(db!, dashboardPath), {
+             userId: user.uid,
+             tiles: tiles,
+             updatedAt: Date.now()
+           });
+         } catch (err) {
+           handleFirestoreError(err, OperationType.WRITE, dashboardPath);
+         }
 
          // Sync datasets (this might be heavy, so we only save metadata and columns/sampleData)
          for (const ds of datasets) {
-           await setDoc(doc(db, `users/${user.uid}/datasets`, ds.id), {
-             userId: user.uid,
-             name: ds.name,
-             columns: ds.columns || [],
-             data: ds.data || [], // Sample data
-             size: ds.rowCount || 0,
-             lastModified: Date.now()
-           }, { merge: true });
+           const datasetPath = `users/${user.uid}/datasets/${ds.id}`;
+           try {
+             await setDoc(doc(db!, datasetPath), {
+               userId: user.uid,
+               name: ds.name,
+               columns: ds.columns || [],
+               data: ds.data || [], // Sample data
+               size: ds.rowCount || 0,
+               lastModified: Date.now()
+             }, { merge: true });
+           } catch (err) {
+             handleFirestoreError(err, OperationType.WRITE, datasetPath);
+           }
          }
-
        } catch (err) {
-         console.error("Save failed:", err);
+         console.error("Save process failed:", err);
        }
     };
 
@@ -144,12 +167,15 @@ function MainApp() {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-blue-600 text-white text-3xl font-bold font-mono">
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0A0A0B] text-white">
         <div className="flex flex-col items-center">
-          <div className="animate-spin text-white mb-4">
-            <Sparkles className="w-16 h-16" />
+          <div className="relative">
+            <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 animate-pulse"></div>
+            <Sparkles className="w-12 h-12 text-indigo-500 animate-pulse relative z-10" />
           </div>
-          <div>REACT IS LOADING AND RUNNING...</div>
+          <div className="mt-6 text-sm font-medium tracking-[0.2em] text-slate-500 uppercase animate-pulse">
+            Initializing System
+          </div>
         </div>
       </div>
     );
@@ -159,7 +185,6 @@ function MainApp() {
     return (
       <>
         <AuthPage />
-        <Toaster />
       </>
     );
   }
@@ -222,7 +247,6 @@ function MainApp() {
         </div>
         {(currentView === "dashboard" || currentView === "reports") && <RightPanel />}
         <DataPreviewModal />
-        <Toaster />
       </div>
     </TooltipProvider>
   );

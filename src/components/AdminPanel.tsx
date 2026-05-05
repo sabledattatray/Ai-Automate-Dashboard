@@ -19,9 +19,13 @@ export function AdminPanel() {
 
   const fetchUsers = async () => {
     try {
+      if (!auth?.currentUser) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setErrorState(null);
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth.currentUser.getIdToken();
       const url = "/api/admin/users";
       console.log(`[ADMIN] Fetching from ${url}`);
       const res = await fetch(url, {
@@ -91,7 +95,8 @@ export function AdminPanel() {
     }
     
     try {
-      const token = await auth.currentUser?.getIdToken();
+      if (!auth?.currentUser) return;
+      const token = await auth.currentUser.getIdToken();
       const res = await fetch(`/api/admin/users/${selectedUser.uid}/password`, {
         method: "PUT",
         headers: { 
@@ -122,7 +127,8 @@ export function AdminPanel() {
     if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
     
     try {
-      const token = await auth.currentUser?.getIdToken();
+      if (!auth?.currentUser) return;
+      const token = await auth.currentUser.getIdToken();
       const res = await fetch(`/api/admin/users/${uid}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }

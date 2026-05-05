@@ -27,10 +27,15 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
     // --- Validation Blueprints ---
 
     function isValidDataset(data) {
-      return data.userId == request.auth.uid
+      return data.keys().hasAll(['userId', 'name']) 
+        && data.userId == request.auth.uid
         && data.name is string && data.name.size() <= 256
         && (data.get('columns', []) is list)
         && (data.get('data', []) is list)
@@ -39,7 +44,8 @@ service cloud.firestore {
     }
 
     function isValidDashboard(data) {
-      return data.userId == request.auth.uid
+      return data.keys().hasAll(['userId', 'tiles'])
+        && data.userId == request.auth.uid
         && (data.tiles is list && data.tiles.size() <= 100)
         && (data.get('updatedAt', 0) is number);
     }
@@ -47,7 +53,6 @@ service cloud.firestore {
     // --- Collection Routes ---
 
     match /users/{userId} {
-      // Basic profile read
       allow get: if isOwner(userId);
 
       match /datasets/{datasetId} {
