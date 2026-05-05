@@ -100,7 +100,7 @@ export function AuthPage() {
     if (!auth) return;
     setLoading(true);
     try {
-      const provider = new OAuthProvider('oidc.linkedin'); // Requires Firebase Enterprise or specific Custom Auth config, falling back to mock or standard OAuth if configured
+      const provider = new OAuthProvider('linkedin.com');
       const cred = await signInWithPopup(auth, provider);
       await syncUserToFirestore(cred.user);
       toast.success("Logged in with LinkedIn!");

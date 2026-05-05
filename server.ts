@@ -97,6 +97,7 @@ async function startServer() {
     try {
       console.log("[ADMIN] Fetching users list...");
       const listUsersResult = await admin.auth().listUsers(100);
+      console.log(`[ADMIN] Found ${listUsersResult.users.length} users`);
       res.json(listUsersResult.users.map(u => ({
         uid: u.uid,
         email: u.email,
@@ -204,7 +205,7 @@ async function startServer() {
          }
          db.exec("COMMIT");
        } catch(err) {
-         console.error("Commit error:", err);
+         console.error("Flush error:", err);
          db.exec("ROLLBACK");
        }
        batch = [];
