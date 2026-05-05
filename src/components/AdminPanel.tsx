@@ -12,6 +12,7 @@ export function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState<React.ReactNode | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDemoMode, setIsDemoMode] = useState(false);
   
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
@@ -21,18 +22,25 @@ export function AdminPanel() {
     try {
       if (!auth?.currentUser) {
         setLoading(false);
+        setErrorState("No authenticated user session found.");
         return;
       }
 
+      console.log(`[ADMIN-UI] Current user: ${auth.currentUser.email}, UID: ${auth.currentUser.uid}`);
+
       // Check if we are in demo mode
       if (auth.currentUser.uid === 'demo-user') {
+        console.log("[ADMIN-UI] Entering Demo Mode");
+        setIsDemoMode(true);
         setUsers([
           { uid: 'demo-user', email: 'guest@luminabi.demo', displayName: 'Guest User', providers: ['demo'], creationTime: Date.now(), lastSignInTime: Date.now() },
-          { uid: 'example-1', email: 'user@example.com', displayName: 'Example User', providers: ['google'], creationTime: Date.now() - 86400000, lastSignInTime: Date.now() - 3600000 }
+          { uid: 'admin-sim', email: 'sabledattatray@gmail.com', displayName: 'Dattatray Sable (Admin)', providers: ['google-mock'], creationTime: Date.now() - 172800000, lastSignInTime: Date.now() }
         ]);
         setLoading(false);
         return;
       }
+      
+      setIsDemoMode(false);
 
       setLoading(true);
       setErrorState(null);
@@ -206,6 +214,11 @@ export function AdminPanel() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Admin Command Center</h1>
+              {isDemoMode && (
+                <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                  Demo Mode
+                </span>
+              )}
             </div>
             <p className="text-slate-400 pl-14">Manage users, adjust security credentials, and oversee the platform.</p>
           </div>

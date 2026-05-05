@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { auth, db } from "../lib/firebase";
+import { auth, db, isRealFirebase } from "../lib/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, GithubAuthProvider, OAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "./ui/button";
@@ -56,6 +56,19 @@ export function AuthPage() {
     if (!auth) return;
     setLoading(true);
     try {
+      if (!isRealFirebase) {
+        // Simulate Google login in demo mode
+        const demoUser = { 
+          uid: 'demo-user', 
+          email: 'sabledattatray@gmail.com', // Use the admin email for demo purposes
+          displayName: 'Admin (Demo Mode)',
+          photoURL: 'https://lh3.googleusercontent.com/a/ACg8ocL...' 
+        };
+        localStorage.setItem('lumina_demo_user', JSON.stringify(demoUser));
+        toast.success("Simulated Google Login (Demo Mode)!");
+        setTimeout(() => window.location.reload(), 1000);
+        return;
+      }
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       await syncUserToFirestore(cred.user);
@@ -78,6 +91,10 @@ export function AuthPage() {
     if (!auth) return;
     setLoading(true);
     try {
+      if (!isRealFirebase) {
+        toast.info("GitHub Login is only available with real Firebase configured.");
+        return;
+      }
       const provider = new GithubAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       await syncUserToFirestore(cred.user);
@@ -100,6 +117,10 @@ export function AuthPage() {
     if (!auth) return;
     setLoading(true);
     try {
+      if (!isRealFirebase) {
+        toast.info("LinkedIn Login is only available with real Firebase configured.");
+        return;
+      }
       const provider = new OAuthProvider('linkedin.com');
       const cred = await signInWithPopup(auth, provider);
       await syncUserToFirestore(cred.user);
